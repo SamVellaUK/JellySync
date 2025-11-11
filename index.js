@@ -2,6 +2,7 @@ const path = require('path');
 const { loadConfig, setupDirectories } = require('./lib/config');
 const { createWebhookServer, watchWebhooks } = require('./lib/webhookReceiver');
 const { performFullSync, scheduleFullSync } = require('./lib/fullSync');
+const { schedulePruning } = require('./lib/fileManager');
 
 // ============================================================================
 // MAIN APPLICATION
@@ -46,6 +47,9 @@ async function start() {
   } else {
     console.log('\n[FULL-SYNC] No master server configured - full sync disabled');
   }
+
+  // Schedule file pruning
+  schedulePruning(config, dirs);
 }
 
 // Start the application
