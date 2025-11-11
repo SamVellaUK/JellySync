@@ -1,0 +1,17 @@
+services:
+  jellysync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jellysync
+    networks:
+      - media
+    ports:
+      - "9500:9500"  # Change first port if you changed port in config.json
+    volumes:
+      - "./jellysync:/volume"
+    restart: unless-stopped
+
+networks:
+  media:
+    driver: bridge

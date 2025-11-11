@@ -1,0 +1,28 @@
+# Development files
+node_modules/
+npm-debug.log
+
+# Local data
+data/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+implementation.md
+
+# Local config (don't include user's personal config in image)
+config.json
+
+# Docker files
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

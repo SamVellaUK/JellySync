@@ -1,0 +1,16 @@
+
+services:
+  jellysync:
+    image: sammyv77/jellysync:latest
+    container_name: jellysync
+    networks:
+      - media
+    ports:
+      - "9500:9500"  # Change first port if you changed port in config.json
+    volumes:
+      - "./jellysync:/volume"
+    restart: unless-stopped
+
+networks:
+  media:
+    driver: bridge

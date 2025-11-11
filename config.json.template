@@ -1,0 +1,26 @@
+{
+  "port": 9500,
+  "masterServer": "server1",
+  "fullResyncIntervalHours": 24,
+  "syncUsers": [],
+  "subscribers": [
+    {
+      "name": "server1",
+      "url": "http://SERVER_1_IP:8096",
+      "apiKey": "YOUR_API_KEY_HERE",
+      "syncEvents": ["PlaybackStop", "UserDataSaved"]
+    },
+    {
+      "name": "server2",
+      "url": "http://SERVER_2_IP:8096",
+      "apiKey": "YOUR_API_KEY_HERE",
+      "syncEvents": ["PlaybackStop", "UserDataSaved"]
+    },
+    {
+      "name": "server3",
+      "url": "http://SERVER_3_IP:8096",
+      "apiKey": "YOUR_API_KEY_HERE",
+      "syncEvents": ["PlaybackStop", "UserDataSaved"]
+    }
+  ]
+}

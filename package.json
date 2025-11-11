@@ -1,0 +1,12 @@
+{
+  "name": "jellysync",
+  "version": "1.0.0",
+  "description": "Jellyfin multi-server sync - synchronizes watch status between multiple Jellyfin instances",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {},
+  "author": "SamVellaUK",
+  "license": "MIT"
+}
