@@ -5,6 +5,7 @@ JellySync automatically synchronizes watch status and playback progress between 
 ## What It Does
 
 - Syncs playback position when you stop watching content
+- Copies newly added media files from master server to a mirror destination
 - Initial full sync on startup from master server to all other servers
 - Periodic complete resync at configurable intervals
 - Works with Movies and TV Episodes
@@ -66,19 +67,28 @@ nano jellysync/config.json
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"]
     }
-  ]
+  ],
+  "fileCopy": {
+    "enabled": false,
+    "sourceRoot": "/media",
+    "destRoot": "/mirror",
+    "postCopyDelaySeconds": 0,
+    "retries": 5,
+    "retrySleepMs": 2000
+  }
 }
 ```
 
 **Configuration Notes:**
 - `port` - Port for webhook receiver (default: 9500)
-- `masterServer` - (Optional) Name of master server for full sync. If set, performs initial sync on startup and periodic resyncs
+- `masterServer` - (Optional) Name of master server for full sync and file copy. If set, performs initial sync on startup and periodic resyncs
 - `fullResyncIntervalHours` - (Optional) Hours between full resyncs (default: 24)
 - `syncUsers` - (Optional) Array of usernames to sync. Leave empty `[]` to sync all users. Example: `["User1", "User2"]`
 - `name` - Must match your server name in Jellyfin Dashboard → General
 - `url` - Full URL including port and base path (if using reverse proxy)
 - `apiKey` - Generate in Jellyfin: Dashboard → API Keys → Add
 - `syncEvents` - Include this field only for servers that should send webhooks
+- `fileCopy` - (Optional) File copy settings — see [File Copy](#file-copy) section below
 
 ### 3. Restart JellySync
 
@@ -113,6 +123,8 @@ On each Jellyfin server that should send updates:
 4. Save
 
 **Important:** Use the same webhook URL for all Jellyfin servers. JellySync identifies them by server name.
+
+**If using File Copy:** On the master server only, add a second Generic Destination for `ItemAdded` events with a custom JSON body that includes the file path — see [File Copy](#file-copy) for details.
 
 ## Full Sync Feature
 
@@ -242,6 +254,64 @@ ls -la ./jellysync/data/offline/
 - `jellysync/data/error/` - Failed syncs (user/content not found)
 - `jellysync/data/offline/` - Target server unreachable (can be retried)
 - `jellysync/data/unsupported/` - Events not configured for sync
+
+## File Copy
+
+JellySync can automatically copy newly added media files from the master Jellyfin server to a mirror destination, then trigger a library refresh on all subscriber servers.
+
+### How It Works
+
+1. The master Jellyfin server fires an `ItemAdded` webhook to JellySync
+2. JellySync extracts the file path from the webhook
+3. The file is copied to the mirror destination, preserving the folder structure relative to `sourceRoot`
+4. A library refresh is triggered on all subscriber servers (the master is skipped as it already has the file)
+
+### Configuration
+
+Add a `fileCopy` block to `config.json`:
+
+```json
+"fileCopy": {
+  "enabled": true,
+  "sourceRoot": "/media",
+  "destRoot": "/mirror",
+  "postCopyDelaySeconds": 0,
+  "retries": 5,
+  "retrySleepMs": 2000
+}
+```
+
+- `enabled` - Set to `true` to activate file copy
+- `sourceRoot` - The root path that is stripped to produce the relative mirror path. E.g. with `sourceRoot: "/media"`, a file at `/media/movies/Foo (2023)/Foo.mkv` is mirrored to `/mirror/movies/Foo (2023)/Foo.mkv`
+- `destRoot` - Destination root path (bind-mount this to your remote share in Docker)
+- `postCopyDelaySeconds` - Seconds to wait before copying (useful if the file needs time to finish writing)
+- `retries` - Number of times to retry if the source file is not yet available
+- `retrySleepMs` - Milliseconds between retries
+
+**Note:** `masterServer` must be set in `config.json` for file copy to work. Only `ItemAdded` events from the master server trigger a copy.
+
+### Jellyfin Webhook Template
+
+On the master Jellyfin server, add a second Generic Destination in the Webhook plugin configured for `ItemAdded` events. The webhook body template must include the `Path` field:
+
+```json
+{
+  "NotificationType": "{{NotificationType}}",
+  "ServerName": "{{ServerName}}",
+  "Name": "{{Name}}",
+  "ItemType": "{{ItemType}}",
+  "Path": "{{ItemPhysicalPath}}"
+}
+```
+
+### Docker Volume
+
+Make sure your `destRoot` path is bind-mounted in your Docker Compose file so that copied files land on your remote share:
+
+```yaml
+volumes:
+  - /path/to/mirror:/mirror
+```
 
 ## Troubleshooting
 
