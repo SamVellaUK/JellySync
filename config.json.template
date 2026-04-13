@@ -22,5 +22,13 @@
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"]
     }
-  ]
+  ],
+  "fileCopy": {
+    "enabled": false,
+    "sourceRoot": "/media",
+    "destRoot": "/mirror",
+    "postCopyDelaySeconds": 0,
+    "retries": 5,
+    "retrySleepMs": 2000
+  }
 }
