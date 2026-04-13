@@ -304,14 +304,21 @@ On the master Jellyfin server, add a second Generic Destination in the Webhook p
 }
 ```
 
-### Docker Volume
+### Docker Volumes
 
-Make sure your `destRoot` path is bind-mounted in your Docker Compose file so that copied files land on your remote share:
+File copy requires **two bind-mounts** in your Docker Compose file:
+
+1. **Source media** — JellySync reads the file directly from disk, so the same media path that the master Jellyfin server uses must also be mounted into the JellySync container. Use the same host path and container path as your Jellyfin configuration so that the `Path` field in the webhook is valid inside JellySync.
+
+2. **Mirror destination** — The destination root where copied files are written must also be mounted.
 
 ```yaml
 volumes:
-  - /path/to/mirror:/mirror
+  - "/media-store/Media:/media:ro"   # source: same mount as master Jellyfin (read-only)
+  - "/path/to/mirror:/mirror"        # destination: your remote share or mirror location
 ```
+
+**Important:** The container path for the source mount must match the path Jellyfin reports in the `ItemPhysicalPath` field. If Jellyfin has `/media-store/Media` mounted as `/media`, then JellySync must also mount it as `/media`, and `sourceRoot` in config should be `/media`.
 
 ## Troubleshooting
 
