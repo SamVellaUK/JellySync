@@ -1,7 +1,6 @@
 {
   "port": 9500,
   "masterServer": "server1",
-  "sourceRoot": "/media",
   "fullResyncIntervalHours": 24,
   "syncUsers": [],
   "subscribers": [
