@@ -124,7 +124,7 @@ On each Jellyfin server that should send updates:
 
 **Important:** Use the same webhook URL for all Jellyfin servers. JellySync identifies them by server name.
 
-**If using File Copy:** On the master server only, add a second Generic Destination for `ItemAdded` events with a custom JSON body that includes the file path — see [File Copy](#file-copy) for details.
+**If using File Copy:** On the master server only, add a second Generic Destination for `ItemAdded` events — see [File Copy](#file-copy) for the required template fields.
 
 ## Full Sync Feature
 
@@ -262,7 +262,7 @@ JellySync can automatically copy newly added media files from the master Jellyfi
 ### How It Works
 
 1. The master Jellyfin server fires an `ItemAdded` webhook to JellySync
-2. JellySync extracts the file path from the webhook
+2. JellySync resolves the file path — from the webhook if present, otherwise by querying the Jellyfin API using the `ItemId`
 3. The file is copied to the mirror destination, preserving the folder structure relative to `sourceRoot`
 4. A library refresh is triggered on all subscriber servers (the master is skipped as it already has the file)
 
@@ -292,23 +292,25 @@ Add a `fileCopy` block to `config.json`:
 
 ### Jellyfin Webhook Template
 
-On the master Jellyfin server, add a second Generic Destination in the Webhook plugin configured for `ItemAdded` events. The webhook body template must include the `Path` field:
+On the master Jellyfin server, add a second Generic Destination in the Webhook plugin configured for `ItemAdded` events. The minimum required fields are:
 
 ```json
 {
   "NotificationType": "{{NotificationType}}",
   "ServerName": "{{ServerName}}",
   "Name": "{{Name}}",
-  "ItemType": "{{ItemType}}",
-  "Path": "{{ItemPhysicalPath}}"
+  "ItemId": "{{ItemId}}",
+  "ItemType": "{{ItemType}}"
 }
 ```
+
+JellySync uses the `ItemId` to look up the file path from the Jellyfin API automatically — no need to include the path in the template. Optionally you can include `"Path": "{{ItemPhysicalPath}}"` and JellySync will use it directly, skipping the API lookup.
 
 ### Docker Volumes
 
 File copy requires **two bind-mounts** in your Docker Compose file:
 
-1. **Source media** — JellySync reads the file directly from disk, so the same media path that the master Jellyfin server uses must also be mounted into the JellySync container. Use the same host path and container path as your Jellyfin configuration so that the `Path` field in the webhook is valid inside JellySync.
+1. **Source media** — JellySync reads the file directly from disk, so the same media path that the master Jellyfin server uses must also be mounted into the JellySync container. Use the same host path and container path as your Jellyfin configuration so that the resolved file path is valid inside JellySync.
 
 2. **Mirror destination** — The destination root where copied files are written must also be mounted.
 
