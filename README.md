@@ -71,7 +71,6 @@ nano jellysync/config.json
   "fileCopy": {
     "enabled": false,
     "sourceRoot": "/media",
-    "destRoot": "/mirror",
     "postCopyDelaySeconds": 0,
     "retries": 5,
     "retrySleepMs": 2000
@@ -257,36 +256,60 @@ ls -la ./jellysync/data/offline/
 
 ## File Copy
 
-JellySync can automatically copy newly added media files from the master Jellyfin server to a mirror destination, then trigger a library refresh on all subscriber servers.
+JellySync can automatically copy newly added media files from the master Jellyfin server to each configured mirror destination, then trigger a library refresh on each server once its copy completes.
 
 ### How It Works
 
 1. The master Jellyfin server fires an `ItemAdded` webhook to JellySync
 2. JellySync resolves the file path — from the webhook if present, otherwise by querying the Jellyfin API using the `ItemId`
-3. The file is copied to the mirror destination, preserving the folder structure relative to `sourceRoot`
-4. A library refresh is triggered on all subscriber servers (the master is skipped as it already has the file)
+3. For each subscriber server that has a `destRoot` configured, the file is copied to that destination, preserving the folder structure relative to `sourceRoot`
+4. A library refresh is triggered on each server immediately after its own copy completes
 
 ### Configuration
 
-Add a `fileCopy` block to `config.json`:
+Add a `fileCopy` block to `config.json` and set `destRoot` on each subscriber that should receive copied files:
 
 ```json
 "fileCopy": {
   "enabled": true,
   "sourceRoot": "/media",
-  "destRoot": "/mirror",
   "postCopyDelaySeconds": 0,
   "retries": 5,
   "retrySleepMs": 2000
-}
+},
+"subscribers": [
+  {
+    "name": "master",
+    "url": "http://MASTER_IP:8096",
+    "apiKey": "YOUR_API_KEY_HERE",
+    "syncEvents": ["ItemAdded", "PlaybackStop", "UserDataSaved"]
+  },
+  {
+    "name": "replica1",
+    "url": "http://REPLICA_1_IP:8096",
+    "apiKey": "YOUR_API_KEY_HERE",
+    "destRoot": "/mirror1"
+  },
+  {
+    "name": "replica2",
+    "url": "http://REPLICA_2_IP:8096",
+    "apiKey": "YOUR_API_KEY_HERE",
+    "destRoot": "/mirror2"
+  }
+]
 ```
 
+**`fileCopy` fields:**
 - `enabled` - Set to `true` to activate file copy
-- `sourceRoot` - The root path that is stripped to produce the relative mirror path. E.g. with `sourceRoot: "/media"`, a file at `/media/movies/Foo (2023)/Foo.mkv` is mirrored to `/mirror/movies/Foo (2023)/Foo.mkv`
-- `destRoot` - Destination root path (bind-mount this to your remote share in Docker)
+- `sourceRoot` - The root path stripped to produce the relative path. E.g. with `sourceRoot: "/media"`, a file at `/media/movies/Foo (2023)/Foo.mkv` is copied to `{destRoot}/movies/Foo (2023)/Foo.mkv`
 - `postCopyDelaySeconds` - Seconds to wait before copying (useful if the file needs time to finish writing)
 - `retries` - Number of times to retry if the source file is not yet available
 - `retrySleepMs` - Milliseconds between retries
+
+**`destRoot` (per subscriber):**
+- Add `destRoot` to any subscriber that should receive copied files
+- Subscribers without `destRoot` are skipped for file copy but still participate in playback/watched syncs
+- Each `destRoot` must be bind-mounted into the JellySync container
 
 **Note:** `masterServer` must be set in `config.json` for file copy to work. Only `ItemAdded` events from the master server trigger a copy.
 
@@ -308,16 +331,17 @@ JellySync uses the `ItemId` to look up the file path from the Jellyfin API autom
 
 ### Docker Volumes
 
-File copy requires **two bind-mounts** in your Docker Compose file:
+File copy requires bind-mounts for the source media and for each mirror destination in your Docker Compose file:
 
 1. **Source media** — JellySync reads the file directly from disk, so the same media path that the master Jellyfin server uses must also be mounted into the JellySync container. Use the same host path and container path as your Jellyfin configuration so that the resolved file path is valid inside JellySync.
 
-2. **Mirror destination** — The destination root where copied files are written must also be mounted.
+2. **Mirror destinations** — Each `destRoot` used in your subscriber config must be mounted into the container.
 
 ```yaml
 volumes:
   - "/media-store/Media:/media:ro"   # source: same mount as master Jellyfin (read-only)
-  - "/path/to/mirror:/mirror"        # destination: your remote share or mirror location
+  - "/path/to/mirror1:/mirror1"      # destination for replica1
+  - "/path/to/mirror2:/mirror2"      # destination for replica2
 ```
 
 **Important:** The container path for the source mount must match the path Jellyfin reports in the `ItemPhysicalPath` field. If Jellyfin has `/media-store/Media` mounted as `/media`, then JellySync must also mount it as `/media`, and `sourceRoot` in config should be `/media`.

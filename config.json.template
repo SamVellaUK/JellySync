@@ -9,21 +9,21 @@
       "url": "http://SERVER_1_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror1",
+      "destRoot": "/mirror1"
     },
     {
       "name": "server2",
       "url": "http://SERVER_2_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror2",
+      "destRoot": "/mirror2"
     },
     {
       "name": "server3",
       "url": "http://SERVER_3_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror3",
+      "destRoot": "/mirror3"
     }
   ],
   "fileCopy": {
