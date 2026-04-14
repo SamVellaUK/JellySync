@@ -10,7 +10,6 @@ JellySync automatically synchronizes watch status and playback progress between 
 - Periodic complete resync at configurable intervals
 - Works with Movies and TV Episodes
 - Supports multiple server topologies (bidirectional, one-way, custom)
-- Optional user mapping between servers (different usernames, or two accounts on the same server)
 - Runs in a single lightweight Docker container
 - No database required
 
@@ -191,47 +190,6 @@ Specify an array of usernames to sync only those users:
 - **Performance:** Reduce sync time and API calls by focusing on active users
 - **Privacy:** Keep certain users' watch history separate between servers
 
-## User Mapping
-
-By default, JellySync looks up users on target servers by the same username that triggered the event. User mapping lets you override this — either because usernames differ across servers, or because you want to sync between two different accounts on the same server.
-
-### Cross-Server Username Mapping
-
-If a user is called `Sam` on the master but `SamRemote` on a child server, add a `userMap` to that subscriber:
-
-```json
-{
-  "name": "child-server",
-  "url": "http://CHILD_IP:8096",
-  "apiKey": "YOUR_API_KEY_HERE",
-  "userMap": {
-    "Sam": "SamRemote",
-    "Family": "Family"
-  }
-}
-```
-
-**Important:** When `userMap` is defined on a subscriber, **every user** that should sync to that server must be listed. Any user not present in the map is skipped for that server. This means even users whose names are the same on both servers need an explicit entry (e.g. `"Family": "Family"`).
-
-### Same-Server Account Mapping (e.g. Living Room ↔ Bedroom)
-
-If you have two accounts on the same server and want them to share watch progress — for example a family-safe profile and an unrestricted profile — add `userMap` to the master subscriber itself:
-
-```json
-{
-  "name": "Media",
-  "url": "http://MASTER_IP:8096",
-  "apiKey": "YOUR_API_KEY_HERE",
-  "syncEvents": ["PlaybackStop", "UserDataSaved"],
-  "userMap": {
-    "LivingRoom": "Bedroom",
-    "Bedroom": "LivingRoom"
-  }
-}
-```
-
-When `LivingRoom` stops playback, JellySync will also update `Bedroom`'s progress on the same server, and vice versa. This works safely because JellySync updates playback state via the Jellyfin API — those writes do not trigger new webhooks, so there is no risk of circular or cascading events.
-
 ## Sync Topologies
 
 ### Bidirectional (All Servers)
@@ -399,7 +357,7 @@ volumes:
 
 ### Files in error/ folder
 
-- **User not found:** Create matching username on target server, or configure `userMap` on that subscriber if usernames differ
+- **User not found:** Create matching username on target server
 - **Item not found:** Ensure content exists on target server with matching metadata
 - **API errors:** Verify API key is correct and has permissions
 
