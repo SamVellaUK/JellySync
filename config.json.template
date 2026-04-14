@@ -9,7 +9,12 @@
       "url": "http://SERVER_1_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror1"
+      "destRoot": "/mirror1",
+      "_comment_userMap": "Optional. If defined, ALL users syncing to this server must be listed. Omit to use source usernames as-is.",
+      "_comment_selfMap": "To sync between two accounts on the same server (e.g. living room ↔ bedroom), add userMap to the master subscriber itself.",
+      "userMap": {
+        "SourceUsername": "TargetUsername"
+      }
     },
     {
       "name": "server2",
