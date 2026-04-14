@@ -9,8 +9,9 @@ services:
       - "9500:9500"  # Change first port if you changed port in config.json
     volumes:
       - "./jellysync:/volume"
-      # Uncomment and set your mirror path if using the fileCopy feature:
-      # - "/path/to/your/mirror:/mirror"
+      # Uncomment both lines below if using the fileCopy feature:
+      # - "/path/to/your/media:/media:ro"   # same mount as master Jellyfin (read-only source)
+      # - "/path/to/your/mirror:/mirror"    # destination mirror share
     restart: unless-stopped
 
 networks:
