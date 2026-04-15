@@ -119,11 +119,13 @@ On each Jellyfin server that should send updates:
    - **Webhook Name**: `JellySync`
    - **Webhook URL**: `http://JELLYSYNC_IP:9500/webhook`
    - **Notification Type**: Select `PlaybackStop`, `UserDataSaved`
-   - **User Filter**: Select users to sync
+   - **User Filter**: Select every user whose watch history should be synced
    - **Item Type**: Select `Episode`, `Movie`
 4. Save
 
 **Important:** Use the same webhook URL for all Jellyfin servers. JellySync identifies them by server name.
+
+**User Filter must be kept in sync with your JellySync config.** Any user selected here will fire webhooks — if they are not in `syncUsers` (or `syncUsers` is empty to allow all), JellySync will receive their events but drop them into the `unsupported/` folder. Conversely, if a user is in `syncUsers` but not selected in the Jellyfin webhook plugin, their activity will never reach JellySync at all. The safest approach is to either select all users in both places, or maintain an identical list in both.
 
 **If using File Copy:** On the master server only, add a second Generic Destination for `ItemAdded` events — see [File Copy](#file-copy) for the required template fields.
 
