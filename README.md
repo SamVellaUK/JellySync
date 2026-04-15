@@ -9,9 +9,11 @@ JellySync automatically synchronizes watch status and playback progress between 
 - Initial full sync on startup from master server to all other servers
 - Periodic complete resync at configurable intervals
 - Works with Movies and TV Episodes
-- Supports multiple server topologies (bidirectional, one-way, custom)
+- Supports user mapping for different usernames across servers and same-server cross-account sync
 - Runs in a single lightweight Docker container
 - No database required
+
+> **Recommended topology:** one master server and one child server with matching usernames. Multi-server setups and complex user mapping topologies are supported but have not been extensively tested — take care when combining both.
 
 ## How It Works
 
@@ -51,19 +53,19 @@ nano jellysync/config.json
 ```json
 {
   "port": 9500,
-  "masterServer": "server1",
+  "masterServer": "master",
   "fullResyncIntervalHours": 24,
-  "syncUsers": ["Alexa"],
+  "syncUsers": ["Alice"],
   "subscribers": [
     {
-      "name": "server1",
-      "url": "http://SERVER_1_IP:8096",
+      "name": "master",
+      "url": "http://MASTER_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"]
     },
     {
-      "name": "server2",
-      "url": "http://SERVER_2_IP:8096",
+      "name": "child",
+      "url": "http://CHILD_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"]
     }
@@ -190,25 +192,117 @@ Specify an array of usernames to sync only those users:
 - **Performance:** Reduce sync time and API calls by focusing on active users
 - **Privacy:** Keep certain users' watch history separate between servers
 
+## User Mapping
+
+By default JellySync assumes usernames are identical on every server. If your usernames differ, or if you want to keep two accounts on the same server in sync, use the `userMap` option.
+
+### Rules
+
+- **All-or-nothing:** if `userMap` is defined on a subscriber, *every* user that syncs to or from that server must be explicitly listed. Any user not in the map is skipped (with a log message). There is no fallthrough to same-name behaviour.
+- **Two-way:** mappings are automatically bidirectional. Defining `"Alice": "alice_remote"` means Alice→alice_remote when syncing *to* that server, and alice_remote→Alice when a webhook arrives *from* that server. You do not need to define the reverse.
+
+### Cross-server username mismatch
+
+If the user is called "Alice" on the master and "alice" on the child:
+
+```json
+"subscribers": [
+  {
+    "name": "master",
+    "url": "http://MASTER_IP:8096",
+    "apiKey": "...",
+    "syncEvents": ["PlaybackStop", "UserDataSaved"]
+  },
+  {
+    "name": "child",
+    "url": "http://CHILD_IP:8096",
+    "apiKey": "...",
+    "syncEvents": ["PlaybackStop", "UserDataSaved"],
+    "userMap": {
+      "Alice": "alice"
+    }
+  }
+]
+```
+
+`syncUsers` should list the canonical (master-side) username: `"syncUsers": ["Alice"]`.
+
+### Same-server cross-account sync
+
+To keep two accounts on the master server in sync with each other (e.g. a living room and a bedroom profile), add `userMap` to the **master subscriber itself**. This is only supported on the master server.
+
+```json
+"subscribers": [
+  {
+    "name": "master",
+    "url": "http://MASTER_IP:8096",
+    "apiKey": "...",
+    "syncEvents": ["PlaybackStop", "UserDataSaved"],
+    "userMap": {
+      "LivingRoom": "Bedroom"
+    }
+  },
+  {
+    "name": "child",
+    "url": "http://CHILD_IP:8096",
+    "apiKey": "...",
+    "syncEvents": ["PlaybackStop", "UserDataSaved"]
+  }
+]
+```
+
+When LivingRoom watches something, JellySync syncs to Bedroom on the master and to LivingRoom on the child. When Bedroom watches, it syncs to LivingRoom on the master and to LivingRoom on the child (LivingRoom is the canonical name, the key in the map). API-based writes do not fire Jellyfin webhooks, so there is no sync loop.
+
+> **Note:** `syncUsers` should list both accounts if you want to filter: `"syncUsers": ["LivingRoom", "Bedroom"]`. Both will be matched correctly because of the two-way reverse lookup.
+
+### Same-server mapping + shared users on child
+
+If the master has a same-server mapping (`LivingRoom ↔ Bedroom`) **and** the child server also has both LivingRoom and Bedroom accounts, be aware of this limitation:
+
+JellySync can only sync to **one** target username per server per event. Without a `userMap` on the child, all events sync to the canonical username (LivingRoom). Bedroom on the child will never be updated via the master's same-server mapping.
+
+If you want child's Bedroom to be the sync target instead, add a `userMap` to the child:
+
+```json
+{
+  "name": "child",
+  "userMap": { "LivingRoom": "Bedroom" }
+}
+```
+
+But then child's LivingRoom account won't receive updates. There is currently no way to fan a single event out to multiple users on the same target server. The simplest approach in this scenario is to ensure the child only has one account that should track the master's watch state.
+
+### Multi-server topologies with user mapping
+
+User mapping with more than two servers has not been thoroughly tested. If you need it, the mapping is applied per-subscriber independently, so in principle each server can have its own `userMap`. Proceed with caution and verify behaviour in your specific setup.
+
 ## Sync Topologies
 
-### Bidirectional (All Servers)
+### Recommended: Master + Child (Bidirectional)
 
-All servers send webhooks and receive updates. Configure webhooks on all servers.
+The recommended and most tested setup. Both servers send webhooks and receive updates. The master server drives full syncs on startup and at regular intervals.
 
-**Use case:** Home server, remote server, and backup server all stay in sync
+```json
+{
+  "masterServer": "master",
+  "subscribers": [
+    { "name": "master", "syncEvents": ["PlaybackStop", "UserDataSaved"], "..." : "..." },
+    { "name": "child",  "syncEvents": ["PlaybackStop", "UserDataSaved"], "..." : "..." }
+  ]
+}
+```
 
-### One-Way (Master → Slaves)
+Configure webhooks on both servers pointing to the same JellySync URL.
 
-Only master server sends webhooks. Slave servers receive updates but don't send them back. Use with `masterServer` configuration for initial and periodic full syncs.
+### One-Way (Master → Child)
 
-**Use case:** Main server with read-only backup/archive servers
+Only the master sends webhooks. The child receives updates but never triggers syncs. Useful for a read-only backup or archive server.
 
-**Configuration:** Only configure webhooks on the master server. In `config.json`, only include `syncEvents` for the master and set `masterServer` to the master's name.
+**Configuration:** Only configure webhooks on the master. Omit `syncEvents` from the child subscriber.
 
-### Custom
+### Multiple Servers
 
-Mix and match based on your needs by choosing which servers send webhooks.
+More than two servers are supported — add additional subscribers to the array. However, user mapping with multiple servers has not been thoroughly tested. If all usernames are identical across every server, this works without any extra configuration. If usernames differ, treat multi-server + user mapping as experimental.
 
 ## Verifying Installation
 
