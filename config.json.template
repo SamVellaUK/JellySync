@@ -9,7 +9,11 @@
       "url": "http://SERVER_1_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror1"
+      "destRoot": "/mirror1",
+      "_comment_userMap": "Optional. If set, ALL users syncing to/from this server must be listed. Mappings are two-way. Omit for same-username behaviour.",
+      "userMap": {
+        "CanonicalUsername": "UsernameOnThisServer"
+      }
     },
     {
       "name": "server2",
