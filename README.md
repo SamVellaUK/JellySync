@@ -88,7 +88,7 @@ nano jellysync/config.json
 - `name` - Must match your server name in Jellyfin Dashboard → General
 - `url` - Full URL including port and base path (if using reverse proxy)
 - `apiKey` - Generate in Jellyfin: Dashboard → API Keys → Add
-- `syncEvents` - Include this field only for servers that should send webhooks
+- `syncEvents` - Array of event types this server should send. Supported values: `PlaybackStop`, `UserDataSaved`, `ItemAdded`. Add `ItemAdded` on the master only when using file copy.
 - `fileCopy` - (Optional) File copy settings — see [File Copy](#file-copy) section below
 
 ### 3. Restart JellySync
