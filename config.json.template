@@ -8,7 +8,8 @@
       "name": "master",
       "url": "http://MASTER_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
-      "syncEvents": ["PlaybackStop", "UserDataSaved"],
+      "syncEvents": ["ItemAdded", "PlaybackStop", "UserDataSaved"],
+      "_comment_syncEvents": "ItemAdded triggers file copy (requires fileCopy.enabled = true). Remove it if not using file copy.",
       "_comment_userMap_same_server": "Optional. Add userMap here to sync between two accounts on this same server (e.g. LivingRoom <-> Bedroom). Only supported on the master server. Mappings are two-way and all-or-nothing.",
       "_comment_userMap_same_server_example": "\"userMap\": { \"LivingRoom\": \"Bedroom\" }"
     },
