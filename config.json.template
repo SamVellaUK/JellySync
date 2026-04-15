@@ -1,33 +1,24 @@
 {
   "port": 9500,
-  "masterServer": "server1",
+  "masterServer": "master",
   "fullResyncIntervalHours": 24,
   "syncUsers": [],
   "subscribers": [
     {
-      "name": "server1",
-      "url": "http://SERVER_1_IP:8096",
+      "name": "master",
+      "url": "http://MASTER_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror1",
-      "_comment_userMap": "Optional. If set, ALL users syncing to/from this server must be listed. Mappings are two-way. Omit for same-username behaviour.",
-      "userMap": {
-        "CanonicalUsername": "UsernameOnThisServer"
-      }
+      "_comment_userMap_same_server": "Optional. Add userMap here to sync between two accounts on this same server (e.g. LivingRoom <-> Bedroom). Only supported on the master server. Mappings are two-way and all-or-nothing.",
+      "_comment_userMap_same_server_example": "\"userMap\": { \"LivingRoom\": \"Bedroom\" }"
     },
     {
-      "name": "server2",
-      "url": "http://SERVER_2_IP:8096",
+      "name": "child",
+      "url": "http://CHILD_IP:8096",
       "apiKey": "YOUR_API_KEY_HERE",
       "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror2"
-    },
-    {
-      "name": "server3",
-      "url": "http://SERVER_3_IP:8096",
-      "apiKey": "YOUR_API_KEY_HERE",
-      "syncEvents": ["PlaybackStop", "UserDataSaved"],
-      "destRoot": "/mirror3"
+      "_comment_userMap": "Optional. Add userMap here if usernames differ between servers. All-or-nothing: if set, every user in syncUsers must be listed. Mappings are two-way.",
+      "_comment_userMap_example": "\"userMap\": { \"Alice\": \"alice_on_child\" }"
     }
   ],
   "fileCopy": {
