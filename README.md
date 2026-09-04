@@ -442,6 +442,87 @@ volumes:
 
 **Important:** The container path for the source mount must match the path Jellyfin reports in the `ItemPhysicalPath` field. If Jellyfin has `/media-store/Media` mounted as `/media`, then JellySync must also mount it as `/media`, and `sourceRoot` in config should be `/media`.
 
+## Full Example
+
+Every earlier section introduces one feature at a time. This puts them all together: master + child, matching usernames, `syncUsers` filtering, and file copy — the recommended, best-tested topology.
+
+```json
+{
+  "port": 9500,
+  "masterServer": "master",
+  "fullResyncIntervalHours": 24,
+  "syncUsers": ["Alice", "Bob"],
+  "subscribers": [
+    {
+      "name": "master",
+      "url": "http://MASTER_IP:8096",
+      "apiKey": "YOUR_MASTER_API_KEY",
+      "syncEvents": ["ItemAdded", "PlaybackStop", "UserDataSaved"]
+    },
+    {
+      "name": "child",
+      "url": "http://CHILD_IP:8096",
+      "apiKey": "YOUR_CHILD_API_KEY",
+      "syncEvents": ["PlaybackStop", "UserDataSaved"],
+      "destRoot": "/mirror"
+    }
+  ],
+  "fileCopy": {
+    "enabled": true,
+    "sourceRoot": "/media",
+    "postCopyDelaySeconds": 0,
+    "retries": 5,
+    "retrySleepMs": 2000
+  }
+}
+```
+
+```yaml
+volumes:
+  - "./jellysync:/volume"
+  - "/media-store/Media:/media:ro"   # same mount as master Jellyfin, read-only
+  - "/path/to/mirror:/mirror"        # child's destRoot
+```
+
+Notes on this example:
+- `master` gets `ItemAdded` in `syncEvents` because `fileCopy.enabled` is `true`; `child` doesn't need it since only the master's `ItemAdded` events trigger a copy.
+- `fileCopy.sourceRoot` (`/media`) must match the container path of the source mount, and `destRoot` (`/mirror`) must match the container path of the child's mirror mount — both shown above.
+- `syncUsers: ["Alice", "Bob"]` restricts sync to those two accounts. The Webhook plugin's **User Filter** on *both* servers must select exactly `Alice` and `Bob` too — see the warning in [Configure Webhook Plugin](#5-configure-webhook-plugin). Any other account on either server is simply never selected in the filter and never syncs.
+- After editing, restart with `docker-compose -f docker-compose.hub.yml up -d` and check `docker logs -f jellysync` to confirm both subscribers connect cleanly.
+
+### Variant: usernames differ (`userMap`)
+
+If `Bob` is actually named `bob_child` on the child server, add `userMap` to the **child** subscriber only — `syncUsers` still lists the canonical (master-side) name:
+
+```json
+{
+  "name": "child",
+  "url": "http://CHILD_IP:8096",
+  "apiKey": "YOUR_CHILD_API_KEY",
+  "syncEvents": ["PlaybackStop", "UserDataSaved"],
+  "destRoot": "/mirror",
+  "userMap": { "Bob": "bob_child" }
+}
+```
+
+`Alice` needs no entry since her name matches on both servers — `userMap` is all-or-nothing only for the users it lists, not for every user in `syncUsers`. Mapping is two-way, so this one line covers both directions automatically.
+
+### Variant: same-server accounts (`userMap` on the master)
+
+To keep two profiles on the master itself in sync with each other (e.g. `LivingRoom` and `Bedroom`), put `userMap` on the **master** subscriber — this is the only place same-server mapping is supported:
+
+```json
+{
+  "name": "master",
+  "url": "http://MASTER_IP:8096",
+  "apiKey": "YOUR_MASTER_API_KEY",
+  "syncEvents": ["ItemAdded", "PlaybackStop", "UserDataSaved"],
+  "userMap": { "LivingRoom": "Bedroom" }
+}
+```
+
+`syncUsers` would then need to list both: `["LivingRoom", "Bedroom"]`. See [Same-server cross-account sync](#same-server-cross-account-sync) for the full explanation of how this behaves.
+
 ## Troubleshooting
 
 ### Playback position not syncing
